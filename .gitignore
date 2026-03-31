@@ -1,25 +1,8 @@
 __pycache__/
 *.pyc
 *.pyo
+
 .idea/
 .env
 venv/
-appenr/
 active_window/
-
-# generated outputs
-result*.txt
-results.csv
-results.json
-Figure_*.png
-deepseek_*result*.txt
-deepseek_*预测*.xlsx
-deepseek_*报告*.xlsx
-初级版本.xlsx
-中级版本.xlsx
-中级版本_多线程.xlsx
-
-# local model artifacts
-related_model.pkl
-scaler.pkl
-checkpoint_epoch_*.pth

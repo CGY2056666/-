@@ -1,104 +1,153 @@
-# Focus Compass
+# 专注小窝 V1
 
-这是一个基于 Flask 的本地网页工具，用来分析一组学习截图是否持续服务于当前专注目标。
+一个基于 Flask 的本地网页工具，用来记录一整段专注过程，并结合截图内容判断当前画面是否仍然服务于你的目标。
 
-当前版本的实际能力是：
+当前版本支持两条主流程：
 
-- 用户自由输入本次专注目标
-- 批量上传截图并生成分析报告
-- 支持 OCR、目标词抽取、DeepSeek 评分和时间窗修正
-- 提供基础的 Session API，便于后续接实时截图流
+- 实时专注记录：输入目标和时长后共享屏幕，系统会持续截图、分析并生成整段报告
+- 手动上传截图：补充上传历史截图，快速查看这一批画面的专注度结果
 
-## 当前项目结构
+## 当前能力
 
-```text
-app.py
-focus_engine/
-  __init__.py
-  config.py
-  deepseek_scoring.py
-  goal_profiles.py
-  models.py
-  ocr.py
-  pipeline.py
-  scoring.py
-  session.py
-  utils.py
-templates/
-  index.html
-static/
-  styles.css
-requirements.txt
-run_focus_site.bat
-测试.png
-```
+- 目标关键词提取与场景建模
+- 通过 SiliconFlow 多模态模型做截图识别和专注评分
+- 本地时长推荐模型
+  - 不再调用 DeepSeek API
+  - 会结合目标类型、任务复杂度、历史记录、完成率和注意力衰减趋势给出推荐
+- 实时会话管理
+  - 自动累计截图
+  - 支持分心提醒
+  - 结束后自动写入 `focus_history.json`
 
-## 主要文件
+## 运行环境
 
-- `app.py`
-  Flask 入口，提供页面路由、批量分析接口和 Session API。
-- `focus_engine/`
-  核心分析逻辑，包括 OCR、目标理解、评分、汇总和实时会话管理。
-- `templates/index.html`
-  页面模板。
-- `static/styles.css`
-  页面样式。
-- `测试.png`
-  演示分析接口使用的本地样例图。
+- Python 3.11+
+- Windows 本地运行已验证
+- 依赖见 `requirements.txt`
 
-## 启动方式
-
-1. 安装依赖
+安装依赖：
 
 ```bash
 pip install -r requirements.txt
 ```
 
-2. 配置 Tesseract OCR
-
-默认会自动尝试常见 Windows 安装路径；如果你的安装路径不同，可以设置环境变量：
-
-```bash
-set TESSERACT_CMD=C:\Program Files\Tesseract-OCR\tesseract.exe
-```
-
-3. 如需启用 DeepSeek 评分，请在本地 `.env` 或系统环境变量中配置：
-
-```bash
-set DEEPSEEK_API_KEY=your_api_key
-```
-
-4. 启动项目
+## 启动方式
 
 ```bash
 python app.py
 ```
 
-也可以直接运行：
+或直接运行：
 
 ```bash
 run_focus_site.bat
 ```
 
-5. 打开浏览器访问：
+启动后访问：
 
 `http://127.0.0.1:5000`
 
+## 配置项
+
+项目会自动读取根目录下的 `.env`。
+
+至少需要配置：
+
+```bash
+SILICONFLOW_API_KEY=your_api_key
+```
+
+常用可选项：
+
+```bash
+SILICONFLOW_BASE_URL=https://api.siliconflow.cn/v1
+SILICONFLOW_MODEL=Qwen/Qwen3-VL-8B-Instruct
+SILICONFLOW_TIMEOUT_SECONDS=
+FOCUS_FRAME_REQUEST_TIMEOUT_MS=
+FOCUS_SESSION_DEFAULT_DURATION_MINUTES=25
+FOCUS_SESSION_MIN_DURATION_MINUTES=1
+FOCUS_SESSION_MAX_DURATION_MINUTES=180
+FOCUS_APP_SECRET=focus-app-dev-secret
+```
+
+说明：
+
+- `SILICONFLOW_TIMEOUT_SECONDS` 留空时，后端请求不额外设置超时上限
+- `FOCUS_FRAME_REQUEST_TIMEOUT_MS` 留空时，前端实时截图上传不主动中断请求
+- `focus_history.json` 会保存历史专注记录和下一次推荐结果
+
+## 目录结构
+
+```text
+app.py
+focus_history.json
+run_focus_site.bat
+requirements.txt
+templates/
+  index.html
+static/
+  app.js
+  styles.css
+focus_engine/
+  __init__.py
+  config.py
+  duration_recommender.py
+  goal_profiles.py
+  history_storage.py
+  models.py
+  ocr.py
+  pipeline.py
+  scoring.py
+  session.py
+  siliconflow_vlm.py
+  utils.py
+```
+
+## 核心模块说明
+
+- `app.py`
+  Flask 入口，负责页面路由和 API。
+- `focus_engine/pipeline.py`
+  上传分析和单帧分析总入口。
+- `focus_engine/siliconflow_vlm.py`
+  SiliconFlow 多模态调用与结果归一化。
+- `focus_engine/session.py`
+  实时会话管理、分心提醒、历史落盘。
+- `focus_engine/duration_recommender.py`
+  本地时长推荐模型。
+- `focus_engine/scoring.py`
+  多帧平滑、状态判定、汇总统计。
+
 ## 主要接口
 
+- `GET /`
+  首页。
 - `POST /analyze`
-  表单上传截图并渲染网页报告。
+  手动上传截图并渲染网页报告。
 - `POST /api/analyze`
-  返回 JSON 结果。
+  手动上传截图并返回 JSON。
+- `POST /api/duration/recommend`
+  根据目标返回本地推荐时长。
 - `POST /api/session/start`
-  开启一个实时分析会话。
+  开启实时会话。
 - `POST /api/session/<session_id>/frame`
-  追加一张截图到会话窗口。
+  追加一张实时截图。
 - `GET /api/session/<session_id>`
   查看当前会话状态。
-- `GET /api/analyze-demo`
-  使用 `测试.png` 走一遍演示分析。
+- `POST /api/session/<session_id>/complete`
+  主动结束会话并返回最终结果。
+- `GET /health`
+  查看服务健康状态和运行时配置摘要。
 
-## 清理说明
+## 输出数据
 
-项目已经去掉历史实验档案、重复网页文件、缓存目录和无运行时作用的规划文档。当前目录只保留运行这个网页应用所需的核心文件。
+- 手动上传会返回：
+  - 目标画像
+  - 每张截图的专注状态与原因
+  - 整体汇总指标和建议
+- 实时模式会额外返回：
+  - 当前会话进度
+  - 分心提醒信号
+  - 当前轮推荐时长
+  - 下一轮推荐时长
+  - AI 复盘寄语
