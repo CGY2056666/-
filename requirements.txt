@@ -2,3 +2,5 @@ Flask
 numpy
 opencv-python
 pytesseract
+scikit-learn
+openai
